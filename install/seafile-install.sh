@@ -33,21 +33,21 @@ $STD apk add libevent-dev
 $STD apk add oniguruma-dev
 msg_ok "Installed Dependencies"
 
-msg_info "Installing MySQL Database"
+msg_info "Installing mariadb Database"
 DB_NAME=seafile_db
 DB_USER=seafile
 DB_PASS="$(openssl rand -base64 18 | cut -c1-13)"
 ADMIN_PASS="$(openssl rand -base64 18 | cut -c1-13)"
 echo "" >>~/seafile.creds
-echo -e "MySQL Root Password: \e[32m$ADMIN_PASS\e[0m" >>~/seafile.creds
+echo -e "mariadb Root Password: \e[32m$ADMIN_PASS\e[0m" >>~/seafile.creds
 echo -e "Seafile Database Username: \e[32m$DB_USER\e[0m" >>~/seafile.creds
 echo -e "Seafile Database Password: \e[32m$DB_PASS\e[0m" >>~/seafile.creds
 echo -e "Seafile Database Name: \e[32m$DB_NAME\e[0m" >>~/seafile.creds
-$STD mysql_install_db --user=mysql --datadir=/var/lib/mysql
+$STD mariadb_install_db --user=mariadb --datadir=/var/lib/mariadb
 $STD rc-service mariadb start
 $STD rc-update add mariadb
-mysql -u root -e "ALTER USER 'root'@'localhost' IDENTIFIED BY '$ADMIN_PASS'; DELETE FROM mysql.user WHERE User=''; DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1'); DROP DATABASE IF EXISTS test; DELETE FROM mysql.db WHERE Db='test' OR Db='test\_%'; CREATE DATABASE \`$DB_NAME\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; GRANT ALL PRIVILEGES ON \`$DB_NAME\`.* TO '$DB_USER'@'localhost' IDENTIFIED BY '$DB_PASS'; FLUSH PRIVILEGES;"
-msg_ok "Installed MySQL Database"
+mariadb -u root -e "ALTER USER 'root'@'localhost' IDENTIFIED BY '$ADMIN_PASS'; DELETE FROM mariadb.user WHERE User=''; DELETE FROM mariadb.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1'); DROP DATABASE IF EXISTS test; DELETE FROM mariadb.db WHERE Db='test' OR Db='test\_%'; CREATE DATABASE \`$DB_NAME\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; GRANT ALL PRIVILEGES ON \`$DB_NAME\`.* TO '$DB_USER'@'localhost' IDENTIFIED BY '$DB_PASS'; FLUSH PRIVILEGES;"
+msg_ok "Installed mariadb Database"
 
 msg_info "Installing Seafile"
 SEAFILE_VERSION="9.0.10"
@@ -67,7 +67,7 @@ cd /opt/seafile/seafile-server-${SEAFILE_VERSION}
 IP4=$(/sbin/ip -o -4 addr list eth0 | awk '{print $4}' | cut -d/ -f1)
 
 # Setup Seafile
-$STD ./setup-seafile-mysql.sh auto -n seafile -i $IP4 -p 3306 -u $DB_USER -w $DB_PASS -q $DB_NAME
+$STD ./setup-seafile-mariadb.sh auto -n seafile -i $IP4 -p 3306 -u $DB_USER -w $DB_PASS -q $DB_NAME
 
 # Configure Seafile
 IP4=$(/sbin/ip -o -4 addr list eth0 | awk '{print $4}' | cut -d/ -f1)
