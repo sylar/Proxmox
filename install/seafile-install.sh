@@ -29,13 +29,15 @@ echo -e "Seafile Database Name: \e[32m$DB_NAME\e[0m" >>~/seafile.creds
 echo -e "Seafile Database User: \e[32m$DB_USER\e[0m" >>~/seafile.creds
 echo -e "Seafile Database Password: \e[32m$DB_PASS\e[0m" >>~/seafile.creds
 
-$STD mariadb-install-db --user=mysql --datadir=/var/lib/mysql
+$STD mysql_install_db --user=mysql --datadir=/var/lib/mysql
 $STD rc-service mariadb start
 $STD rc-update add mariadb
 
 $STD mysql -e "ALTER USER 'root'@'localhost' IDENTIFIED BY '$ROOT_PASS'; DELETE FROM mysql.user WHERE User=''; DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1'); DROP DATABASE IF EXISTS test; DELETE FROM mysql.db WHERE Db='test' OR Db='test\\_%'; FLUSH PRIVILEGES;"
 
 $STD mysql -u root -p"$ROOT_PASS" -e "CREATE DATABASE \`$DB_NAME\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; CREATE USER '$DB_USER'@'localhost' IDENTIFIED BY '$DB_PASS'; GRANT ALL PRIVILEGES ON \`$DB_NAME\`.* TO '$DB_USER'@'localhost'; FLUSH PRIVILEGES;"
+
+$STD apk del mariadb-client
 
 msg_ok "Configured MariaDB"
 
