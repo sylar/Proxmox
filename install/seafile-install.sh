@@ -34,7 +34,7 @@ $STD apk add oniguruma-dev
 msg_ok "Installed Dependencies"
 
 msg_info "Installing MySQL Database"
-DB_NAME=seafile-db
+DB_NAME=seafile_db
 DB_USER=seafile
 DB_PASS="$(openssl rand -base64 18 | cut -c1-13)"
 ADMIN_PASS="$(openssl rand -base64 18 | cut -c1-13)"
