@@ -63,8 +63,11 @@ $STD adduser -D -h /opt/seafile -s /sbin/nologin seafile
 $STD chown -R seafile:seafile /opt/seafile
 cd /opt/seafile/seafile-server-${SEAFILE_VERSION}
 
+# Get the container's IP address
+IP4=$(/sbin/ip -o -4 addr list eth0 | awk '{print $4}' | cut -d/ -f1)
+
 # Setup Seafile
-$STD ./setup-seafile-mysql.sh auto -n seafile -i localhost -p 3306 -u $DB_USER -w $DB_PASS -q $DB_NAME
+$STD ./setup-seafile-mysql.sh auto -n seafile -i $IP4 -p 3306 -u $DB_USER -w $DB_PASS -q $DB_NAME
 
 # Configure Seafile
 IP4=$(/sbin/ip -o -4 addr list eth0 | awk '{print $4}' | cut -d/ -f1)
