@@ -13,48 +13,40 @@ network_check
 update_os
 
 msg_info "Installing Dependencies"
-$STD apk add newt
-$STD apk add curl
-$STD apk add openssl
-$STD apk add openssh
-$STD apk add nano
-$STD apk add mc
-$STD apk add nginx
-$STD apk add python3
-$STD apk add py3-pip
-$STD apk add mysql mysql-client
-$STD apk add python3-dev
-$STD apk add libffi-dev
-$STD apk add gcc
-$STD apk add musl-dev
-$STD apk add jpeg-dev
-$STD apk add zlib-dev
-$STD apk add libevent-dev
-$STD apk add oniguruma-dev
+$STD apk add newt curl openssl openssh nano mc nginx
+$STD apk add python3 py3-pip py3-mysqlclient
+$STD apk add mariadb mariadb-client
 msg_ok "Installed Dependencies"
 
-msg_info "Installing mysql Database"
+msg_info "Configuring MariaDB"
 DB_NAME=seafile_db
 DB_USER=seafile
 DB_PASS="$(openssl rand -base64 18 | cut -c1-13)"
-ADMIN_PASS="$(openssl rand -base64 18 | cut -c1-13)"
+ROOT_PASS="$(openssl rand -base64 18 | cut -c1-13)"
 echo "" >>~/seafile.creds
-echo -e "mysql Root Password: \e[32m$ADMIN_PASS\e[0m" >>~/seafile.creds
-echo -e "Seafile Database Username: \e[32m$DB_USER\e[0m" >>~/seafile.creds
-echo -e "Seafile Database Password: \e[32m$DB_PASS\e[0m" >>~/seafile.creds
+echo -e "MariaDB Root Password: \e[32m$ROOT_PASS\e[0m" >>~/seafile.creds
 echo -e "Seafile Database Name: \e[32m$DB_NAME\e[0m" >>~/seafile.creds
-$STD mysql_install_db --user=mysql --datadir=/var/lib/mysql
-$STD rc-service mysql start
-$STD rc-update add mysql
-mysql -u root -e "ALTER USER 'root'@'localhost' IDENTIFIED BY '$ADMIN_PASS'; DELETE FROM mysql.user WHERE User=''; DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1'); DROP DATABASE IF EXISTS test; DELETE FROM mysql.db WHERE Db='test' OR Db='test\_%'; CREATE DATABASE \`$DB_NAME\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; GRANT ALL PRIVILEGES ON \`$DB_NAME\`.* TO '$DB_USER'@'localhost' IDENTIFIED BY '$DB_PASS'; FLUSH PRIVILEGES;"
-msg_ok "Installed mysql Database"
+echo -e "Seafile Database User: \e[32m$DB_USER\e[0m" >>~/seafile.creds
+echo -e "Seafile Database Password: \e[32m$DB_PASS\e[0m" >>~/seafile.creds
+
+$STD mariadb-install-db --user=mysql --datadir=/var/lib/mysql
+$STD rc-service mariadb start
+$STD rc-update add mariadb
+
+$STD mysql -e "ALTER USER 'root'@'localhost' IDENTIFIED BY '$ROOT_PASS'; DELETE FROM mysql.user WHERE User=''; DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1'); DROP DATABASE IF EXISTS test; DELETE FROM mysql.db WHERE Db='test' OR Db='test\\_%'; FLUSH PRIVILEGES;"
+
+$STD mysql -u root -p"$ROOT_PASS" -e "CREATE DATABASE \`$DB_NAME\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; CREATE USER '$DB_USER'@'localhost' IDENTIFIED BY '$DB_PASS'; GRANT ALL PRIVILEGES ON \`$DB_NAME\`.* TO '$DB_USER'@'localhost'; FLUSH PRIVILEGES;"
+
+msg_ok "Configured MariaDB"
 
 msg_info "Installing Seafile"
 SEAFILE_VERSION="9.0.10"
 ADMIN_EMAIL=admin@seafile.local
+ADMIN_PASS="$(openssl rand -base64 18 | cut -c1-13)"
 echo "" >>~/seafile.creds
 echo -e "Seafile Admin Email: \e[32m$ADMIN_EMAIL\e[0m" >>~/seafile.creds
 echo -e "Seafile Admin Password: \e[32m$ADMIN_PASS\e[0m" >>~/seafile.creds
+
 $STD wget https://download.seadrive.org/seafile-server_${SEAFILE_VERSION}_x86-64.tar.gz
 $STD tar xzf seafile-server_${SEAFILE_VERSION}_x86-64.tar.gz
 $STD mkdir -p /opt/seafile
@@ -66,11 +58,10 @@ cd /opt/seafile/seafile-server-${SEAFILE_VERSION}
 # Get the container's IP address
 IP4=$(/sbin/ip -o -4 addr list eth0 | awk '{print $4}' | cut -d/ -f1)
 
-# Setup Seafile
-$STD ./setup-seafile-mysql.sh auto -n seafile -i $IP4 -p 3306 -u $DB_USER -w $DB_PASS -q $DB_NAME
+# Setup Seafile (one-liner)
+$STD ./setup-seafile-mysql.sh auto -n seafile -i $IP4 -d /opt/seafile/seafile-data -p 3306 -u $DB_USER -w $DB_PASS -q $DB_NAME
 
 # Configure Seafile
-IP4=$(/sbin/ip -o -4 addr list eth0 | awk '{print $4}' | cut -d/ -f1)
 sed -i "s/# SERVICE_URL.*/SERVICE_URL = https:\/\/$IP4/" /opt/seafile/conf/ccnet.conf
 sed -i "s/# FILE_SERVER_ROOT.*/FILE_SERVER_ROOT = https:\/\/$IP4\/seafhttp/" /opt/seafile/conf/seafile.conf
 
@@ -128,7 +119,7 @@ start_stop_daemon_args="--chdir /opt/seafile --user seafile"
 depend() {
     need net
     use logger dns
-    after firewall mysql
+    after firewall mariadb
 }
 
 start_pre() {
